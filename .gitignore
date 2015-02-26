@@ -1,0 +1,12 @@
+target
+*.class
+
+# IDEA
+*.iml
+*.ipr
+*.iws
+.idea
+out
+
+# OS X
+.DS_Store
