@@ -1,46 +1,5 @@
-import spray.json.{JsObject, JsValue}
-
-case class Endpoint(url: String, env: String = "*")
-case class Service(name: String,
-                   publishes: Seq[String] = Seq.empty,
-                   subscribes: Seq[String] = Seq.empty,
-                   endpoints: Seq[Endpoint] = Seq(Endpoint("http://localhost:8080/events/:message_type"))) {
-  def isSubscriberOf(msg: Message) = subscribes.contains(msg.messageType) || subscribes.contains("*")
-  def isPublisherOf(msg: Message) = publishes.contains(msg.messageType)
-}
-case class Message(
-  messageType: String,
-  content: JsValue = new JsObject(Map.empty),
-  attemptsMade: Int = 0,
-  maxAttempts: Int = 5,
-  env: String = "default"
-)(implicit val context: HubContext)
-
-case class NoAuthorityForMessageException(messageType: String, publishingServices: Seq[Service])
-  extends Exception(s"No authority for message $messageType: " +
-    s"it's published by more than one service: ${publishingServices.map(_.name).mkString(", ")}")
-
-class ServicesRepository(services: Service*) {
-  detectNonAuthoritativeMessages
-
-  def getSubscribersFor(msg: Message) = services.filter(_.isSubscriberOf(msg))
-  def getPublisherOf(msg: Message) = services.find(_.isPublisherOf(msg))
-
-  def detectNonAuthoritativeMessages = {
-    val messagePublishers = services.foldLeft(Map[String, List[Service]]())((acc, svc) =>
-      svc.publishes.foldLeft(acc)((acc, msg) =>
-        if (!acc.contains(msg))
-          acc.updated(msg, List(svc))
-        else
-          acc.updated(msg, acc(msg) ++ List(svc))
-      )
-    )
-    messagePublishers.find(_._2.length > 1) match {
-      case Some((msg, services)) => throw new NoAuthorityForMessageException(msg, services)
-      case None =>
-    }
-  }
-}
+import helpers.Scenario
+import org.serviceHub.domain._
 
 class HubContext(repository: ServicesRepository) {
 }
@@ -72,19 +31,18 @@ class ServiceRepositoryTest extends SpecBase {
     ex.getMessage should include ("orders, some_other_service")
     ex.getMessage should include ("order_created")
   }
+
+  "constructor" should "load services from services.json if no services passed" in {
+    val scenarioDir = Scenario("manifest-loading-test").absoluteDir
+    val repo = new ServicesRepository(scenarioDir)
+
+    repo.services.length should be (2)
+    repo.services should contain(Service("orders", Seq("order_created"), Seq("order_paid"), Seq(
+      Endpoint("http://server.com/:message_type"),
+      Endpoint("http://localhost/:message_type", "dev")
+    )))
+  }
 }
 
 class IntegrationTest extends SpecBase {
-  "message" should "have the implicit context" in {
-    implicit val ctx = new HubContext(new ServicesRepository())
-    val msg = Message("done")
-    msg.context shouldNot be (null)
-  }
-
-//  val repository = new ServicesRepository(
-//    Service("orders", publishes = Seq("order_created"), subscribes = Seq("order_paid"), endpoints = Seq(Endpoint("http://localhost:8081")))
-//  )
-//  "Hub" should "delivery message to service" in {
-//    new Hub()
-//  }
 }

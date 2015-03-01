@@ -1,0 +1,17 @@
+{
+  "services": [{
+      "name": "orders",
+      "publishes": ["order_created"],
+      "subscribes": ["order_paid"],
+      "endpoints": {
+        "*": "http://server.com/:message_type",
+        "dev": "http://localhost/:message_type"
+      }
+    }, {
+      "name": "billing",
+      "publishes": ["order_paid"],
+      "subscribes": ["order_created"],
+      "endpoints": "http://localhost/:message_type"
+    }
+  ]
+}
