@@ -7,6 +7,11 @@ case class Endpoint(url: String, env: String = "*")
 
 object Service {
   def jsonTransformer: PartialFunction[(String, JsonAST.JValue), (String, JsonAST.JValue)] = {
+    // "endpoints": "http://localhost/"
+    //        ====>
+    // "endpoints": [
+    //   { env: "*", url: "http://localhost/" }
+    // ]
     case ("endpoints", JString(url)) => (
       "endpoints",
       JArray(List(JObject(
@@ -14,18 +19,23 @@ object Service {
         ("env", JString("*"))
       )))
       )
-    case ("endpoints", JObject(x)) => (
-      "endpoints",
-      JArray(
-        x.map{
-          case JField(env, JString(uri)) => JObject(
-            ("url", JString(uri)),
-            ("env", JString(env))
-          )
-        }
-      )
-      )
-
+    // "endpoints": {
+    //   "*": "http://server.com/"
+    //   "dev": "http://localhost/"
+    // }
+    //      =====>
+    // "endpoints: [
+    //   { env: "*", url: "http://server.com/" },
+    //   { env: "dev", url: "http://localhost/" }
+    // ]
+    case ("endpoints", JObject(x)) => ("endpoints", JArray(
+      x.map{
+        case JField(env, JString(uri)) => JObject(
+          ("url", JString(uri)),
+          ("env", JString(env))
+        )
+      }
+    ))
   }
 }
 
