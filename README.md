@@ -80,3 +80,36 @@ Now from the orders service you can publish your messages:
     }
   }.to_json, content_type: :json
 ```
+
+The message will be delivered to the endpoint of the billing service, as specified in the services manifest as a POST request.
+
+# HOW-TO
+
+## Customize service endpoints
+In service endpoints you can specify placeholders that will be replaced by the actual message values:
+
+```json
+  {
+    "endpoints": "http://:env.server.com/handlers/:type"
+  }
+```
+
+Currently the following placeholders are supported:
+
+  - *type* - message type (example: order_created)
+  - *env* - message environment (example: dev)
+
+### Different urls per environment
+
+Sometimes there's no generic scheme of the different urls that can be expressed via placeholders. In this case you can provide a hash:
+
+```json
+  {
+     "endpoints": {
+        "*": "http://:env.company.com/handlers/:type",
+        "dev": "http://localhost/handlers/:type"
+     }
+  }
+```
+
+**Note** The `*` specifies the default environment
