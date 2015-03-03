@@ -1,4 +1,4 @@
-import helpers.Scenario
+import helpers.{SpecBase, Scenario}
 import org.serviceHub.domain._
 
 class ServiceRepositoryTest extends SpecBase {

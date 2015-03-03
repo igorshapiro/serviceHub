@@ -1,3 +1,4 @@
+import helpers.SpecBase
 import org.serviceHub.domain._
 
 class HubContext(repository: ServicesRepository) {
