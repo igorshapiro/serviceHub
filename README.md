@@ -46,7 +46,10 @@ Example of the manifest:
       "name": "orders",
       "publishes": ["order_created"],
       "subscribes": ["order_paid"],
-      "endpoints": "http://server.com/:message_type"
+      "endpoints": "http://server.com/:message_type",
+      "queue": "rabbitmq://rabbit.server.org/:queue_name",
+      "intermediary": "redis://redis.server.org/0",
+      "archive": "mongodb://mongo.server.org/messages_archive"
     }, {
       "name": "billing",
       "publishes": ["order_paid"],
@@ -56,6 +59,16 @@ Example of the manifest:
   ]
 }
 ```
+
+Elements:
+
+  - *name* - name of the service as it will be displayed in the dashboard and queues are named (for example orders_input)
+  - *publishes* - messages being published by this service
+  - *subscribes* - messages this service subscribes to
+  - *endpoints* - a string or a hash specifying the url to deliver the message to. The message is delivered by a HTTP POST request to the endpoint (after all placeholders were replaced).
+  - *queue* - Message queue server to use (currently only rabbitmq is supported)
+  - *intermediary* - Storage to use for intermediary storing the messages - for example for tracking which messages are being processed
+  - *archive* - Storage to use for archiving all messages
 
 ### Run the hub
 
