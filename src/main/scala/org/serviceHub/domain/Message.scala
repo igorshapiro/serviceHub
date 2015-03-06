@@ -14,6 +14,9 @@ case class Message(
   attemptsMade: Int = 0,
   maxAttempts: Int = 5,
   env: String = "default"
-)
+) {
+  def attempted = this.copy(attemptsMade = attemptsMade + 1)
+  def reachedMaxAttempts = this.attemptsMade >= this.maxAttempts
+}
 
 case class ScheduledMessage(message: Message, dueAt: DateTime, scheduledAt: DateTime)

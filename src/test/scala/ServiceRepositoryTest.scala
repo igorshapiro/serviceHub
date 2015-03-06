@@ -8,7 +8,6 @@ class ServiceRepositoryTest extends SpecBase {
   val bamService = Service("BAM", subscribes = Seq("*"))
 
   val repo = new ServicesRepository(ordersService, emailService, billingService, bamService)
-  implicit val context = new HubContext(repo)
 
   "getSubscribers" should "return all subscribers" in {
     val msg = Message("order_paid")

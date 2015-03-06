@@ -14,13 +14,14 @@ trait SyncHttp {
   implicit val system: ActorSystem
   implicit val timeout: Timeout
 
-  def sendMessage(msg: Message) = {
+  def sendMessage(msg: Message)(implicit hubUrl: String = "http://localhost:8080") = {
     import org.serviceHub.domain.MessageJsonProtocol._
 
     val pipeline = addHeader("Connection", "close") ~> sendReceive
     val future = pipeline {
-      Post("http://localhost:8080/api/v1/messages", msg)
+      Post(s"$hubUrl/api/v1/messages", msg)
     }
+    Await.result(future, 1 second)
   }
 
   def HttpGet(url: String) = {
