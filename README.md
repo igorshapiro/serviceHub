@@ -66,9 +66,20 @@ Elements:
   - *publishes* - messages being published by this service
   - *subscribes* - messages this service subscribes to
   - *endpoints* - a string or a hash specifying the url to deliver the message to. The message is delivered by a HTTP POST request to the endpoint (after all placeholders were replaced).
+    - http(s)://
   - *queue* - Message queue server to use (currently only rabbitmq is supported)
+    - rabbitmq://
+    - sqs:// (TBD)
   - *intermediary* - Storage to use for intermediary storing the messages - for example for tracking which messages are being processed
+    - redis://
+    - mongodb:// (TBD)
+    - postgres:// (TBD)
+    - mysql:// (TBD)
   - *archive* - Storage to use for archiving all messages
+    - mongodb://
+    - postgres:// (TBD)
+    - mysql:// (TBD)
+    - dynamodb:// (TBD)
 
 ### Run the hub
 
