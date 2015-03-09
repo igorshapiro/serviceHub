@@ -62,19 +62,24 @@ case class Service(name: String,
                    subscribes: Seq[String] = Seq.empty,
                    endpoints: Seq[Endpoint] = Seq(Endpoint("http://localhost:8080/events/:message_type")),
                    queue: String = "rabbitmq://localhost",
-                   intermediary: String = "redis://localhost/0",
-                   archive: String = "mongodb://localhost/service_hub") {
+                   intermediate: String = "redis://localhost/0",
+                   storage: String = "mongodb://localhost/service_hub") {
   val consumers = ArrayBuffer[ConsumerControl]()
 
   def registerConsumer(control: ConsumerControl) = consumers.append(control)
 
-  def purgeAllQueues = Providers.createMQProvider(this).purgeAllQueues
+  def purgeQueuesAndStorages = {
+    Providers.createMQProvider(this).purgeAllQueues
+    Providers.createStorageProvider(this).purgeEverything
+  }
 
   def consumeInput(handler: MessageHandler) = registerConsumer(Providers.createMQProvider(this).consumeInput(handler))
   def enqueueInput(message: Message) = Providers.createMQProvider(this).sendInput(message)
 
   def consumeOutgoing(handler: MessageHandler) = registerConsumer(Providers.createMQProvider(this).consumeOutgoing(handler))
   def enqueueOutgoing(msg: Message) = Providers.createMQProvider(this).sendOutgoing(msg)
+
+  def kill(msg: Message) = Providers.createStorageProvider(this).kill(msg)
 
   def getEndpointUrlFor(message: Message) = {
     endpoints.find(e => e.env == message.env)

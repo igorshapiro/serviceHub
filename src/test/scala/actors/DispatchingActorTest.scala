@@ -14,7 +14,7 @@ class DispatchingActorTest extends ActorSpecBase {
 
   val repo = new ServicesRepository(orders, billing, bam)
 
-  override protected def beforeEach(): Unit = List(orders, billing, bam).foreach(_.purgeAllQueues)
+  override protected def beforeEach(): Unit = List(orders, billing, bam).foreach(_.purgeQueuesAndStorages)
   override protected def afterEach(): Unit = repo.stopAllServices
 
   "it" should "dispatch outgoing messages to subscriber input queues" in {

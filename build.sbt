@@ -23,6 +23,7 @@ libraryDependencies ++= {
     "org.json4s" %% "json4s-native" % "3.2.10",
     "com.github.nscala-time" %% "nscala-time" % "1.8.0",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test",
-    "com.thenewmotion.akka" %% "akka-rabbitmq" % "1.2.4"
+    "com.thenewmotion.akka" %% "akka-rabbitmq" % "1.2.4",
+    "org.mongodb" %% "casbah" % "2.8.0"
   )
 }
