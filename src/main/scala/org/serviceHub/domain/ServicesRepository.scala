@@ -19,6 +19,8 @@ class ServicesRepository(val services: Service*) {
 
   def getSubscribersFor(msg: Message) = services.filter(_.isSubscriberOf(msg))
   def getPublisherOf(msg: Message) = services.find(_.isPublisherOf(msg))
+  def purgeAllQueuesForAllServices = services.foreach(_.purgeAllQueues)
+  def stopAllServices = services.foreach(_.stopConsumers)
 
   def detectNonAuthoritativeMessages = {
     val messagePublishers = services.foldLeft(Map[String, List[Service]]())((acc, svc) =>
@@ -37,7 +39,6 @@ class ServicesRepository(val services: Service*) {
 }
 
 object ServicesRepository {
-
   def loadServicesFromFile(f: File): List[Service] = {
     implicit val formats = DefaultFormats
     val jsonString = Source.fromFile(f).mkString

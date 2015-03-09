@@ -137,3 +137,30 @@ Sometimes there's no generic scheme of the different urls that can be expressed 
 ```
 
 **Note** The `*` specifies the default environment
+
+
+## Design
+
+### Actors
+
+The system consists of actors of the following types:
+
+#### Outgoing actor
+Sends messages to outgoing queue
+
+#### Dispatching actor
+Listens to messages in output queue of the service and dispatches them to subscribers input queues
+
+#### Processing actor
+Delivers messages to services (via HTTP POST requests) and takes actions based on service response:
+
+ - Re-enqueue (if failed)
+ - Schedule (if 302 status returned)
+ - Discard (if succeeded)
+ - Move to dead letter queue (if max attempts reached)
+
+#### Scheduling actor
+Polls the schedule storage and enqueues any messages due
+
+#### Input queue listener
+Listens to the queue and sends any messages to Processing actors

@@ -22,6 +22,7 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-testkit" % akkaV,
     "org.json4s" %% "json4s-native" % "3.2.10",
     "com.github.nscala-time" %% "nscala-time" % "1.8.0",
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test"
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test",
+    "com.thenewmotion.akka" %% "akka-rabbitmq" % "1.2.4"
   )
 }
