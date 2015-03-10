@@ -2,35 +2,94 @@ package org.serviceHub.providers.queue
 
 import com.rabbitmq.client
 import com.rabbitmq.client.AMQP.BasicProperties
-import com.rabbitmq.client.{Channel, ConnectionFactory, DefaultConsumer, Envelope}
+import com.rabbitmq.client._
 import org.serviceHub.domain.{Message, Service}
 import org.serviceHub.providers.queue.MQProvider.MessageHandler
+import spray.http.Uri
 import spray.json._
 
-object MQProvider {
-  type MessageHandler = Message => Unit
-}
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
-class ConsumerControl(channel: Channel) {
-  def stop = channel.close()
-}
+object RabbitMQChannelPool {
+  class EndpointPool(endpoint: String) {
+    val max_channels_per_connection = 5
+    val max_acquires_per_channel = 5
+    val factory = new ConnectionFactory()
+    val consumerChannels = ArrayBuffer[(Connection, Channel)]()
+    val connections = mutable.Map[Connection, mutable.Map[Channel, Int]]().withDefaultValue(mutable.Map[Channel, Int]())
 
-abstract class MQProvider(service: Service) {
-  protected def send(queue: String, msg: Message)
-  protected def consume(queue: String, handler: MessageHandler): ConsumerControl
-  protected def purge(queue: String): Unit = ???
+    implicit def endpointAddress: Address = {
+      val uri: Uri = endpoint
+      val port = if (uri.effectivePort == -1) 5672 else uri.effectivePort
+      println(s"Will connect to ${uri.authority.host.address}:$port")
+      new Address(uri.authority.host.address, port)
+    }
 
-  protected def outgoingQueue = s"${service.name}_out"
-  protected def inputQueue = s"${service.name}_in"
-  protected def deadQueue = s"${service.name}_dead"
-  
-  def purgeAllQueues = List(outgoingQueue, inputQueue, deadQueue).foreach(purge)
+    def newConnection = factory.newConnection(List(endpointAddress).toArray)
 
-  def sendOutgoing(msg: Message) = send(outgoingQueue, msg)
-  def consumeOutgoing(handler: MessageHandler) = consume(outgoingQueue, handler)
+    def getConsumerChannel: Channel = {
+      val con = newConnection
+      val channel = con.createChannel()
+      consumerChannels.append((con, channel))
+      channel.getConnection
+      channel
+    }
 
-  def sendInput(msg: Message) = send(inputQueue, msg)
-  def consumeInput(handler: MessageHandler) = consume(inputQueue, handler)
+    def getNonConsumerChannel: Channel = {
+      // Try to find a channel with acquires < max_acquires_per_channel
+      connections.flatMap(c => c._2).find(_._2 < max_acquires_per_channel) match {
+        case Some((channel, _)) =>
+          return channel
+        case None =>
+      }
+      connections.find(_._2.size < max_channels_per_connection) match {
+        case Some((con, channels)) =>
+          val channel = con.createChannel()
+          channels.put(channel, 1)
+          channel
+        case None =>
+          val con = newConnection
+          val channel = con.createChannel
+          connections.put(con, mutable.Map((channel, 1)))
+          channel
+      }
+    }
+
+    def release(channel: Channel) = {
+      val con = channel.getConnection()
+      connections(con)(channel) -= 1
+    }
+
+    def executeInChannel(block: Channel => Unit): Unit = {
+      val channel = getNonConsumerChannel
+      try {
+        block(channel)
+      }
+      finally {
+        release(channel)
+      }
+    }
+
+    def stop() = {
+      consumerChannels.foreach { x =>
+        x._2.close()    // Close the channel
+        x._1.close()    // Then close the connection
+      }
+      consumerChannels.clear()
+
+      connections.foreach { c =>
+        c._2.foreach(_._1.close())    // Close all channels
+        c._1.close()                  // Close all connections
+      }
+      connections.clear()
+    }
+  }
+
+  val pools = mutable.Map[String, EndpointPool]().withDefault(new EndpointPool(_))
+
+  def apply(service: Service) = pools(service.queue)
+  def stop(): Unit = pools.foreach(_._2.stop())
 }
 
 class RabbitMQProvider(service: Service) extends MQProvider(service) {
@@ -40,10 +99,11 @@ class RabbitMQProvider(service: Service) extends MQProvider(service) {
   def initQueue(channel: client.Channel, queue: String) = channel.queueDeclare(queue, true, false, false, null)
 
   lazy val initialize: () => Unit = {
-    val c = getChannel
-    initQueue(c, inputQueue)
-    initQueue(c, outgoingQueue)
-    initQueue(c, deadQueue)
+    RabbitMQChannelPool(service).executeInChannel { c =>
+      initQueue(c, inputQueue)
+      initQueue(c, outgoingQueue)
+      initQueue(c, deadQueue)
+    }
     () => Unit
   }
 
@@ -54,13 +114,15 @@ class RabbitMQProvider(service: Service) extends MQProvider(service) {
     val bytes = msg.toJson.prettyPrint.getBytes("UTF-8")
 
     // http://stackoverflow.com/questions/6386117/rabbitmq-use-of-immediate-and-mandatory-bits
-    getChannel.basicPublish("", queue, false, false, null, bytes)
+    RabbitMQChannelPool(service).executeInChannel { ch =>
+      ch.basicPublish("", queue, false, false, null, bytes)
+    }
   }
 
   override def consume(queue: String, handler: MessageHandler): ConsumerControl = {
     initialize()
 
-    val channel = getChannel
+    val channel = RabbitMQChannelPool(service).getConsumerChannel
     val consumer = new DefaultConsumer(channel) {
       override def handleDelivery(
                                    consumerTag: String,
@@ -77,8 +139,9 @@ class RabbitMQProvider(service: Service) extends MQProvider(service) {
   }
 
 
-  override protected def purge(queue: String): Unit= getChannel.queuePurge(queue)
+  override protected def purge(queue: String): Unit= RabbitMQChannelPool(service).executeInChannel { ch =>
+    ch.queuePurge(queue)
+  }
 
   private def getConnection = factory.newConnection()
-  private def getChannel = getConnection.createChannel()
 }
