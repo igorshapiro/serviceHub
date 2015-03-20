@@ -1,12 +1,7 @@
 package org.serviceHub.domain
 
 import org.json4s.JsonAST
-import org.json4s.JsonAST.{JField, JObject, JArray, JString}
-import org.serviceHub.Providers
-import org.serviceHub.providers.queue.ConsumerControl
-import org.serviceHub.providers.queue.MQProvider.MessageHandler
-
-import scala.collection.mutable.ArrayBuffer
+import org.json4s.JsonAST.{JArray, JField, JObject, JString}
 
 case class Endpoint(url: String, env: String = "*") {
   def build(msg: Message) = {
@@ -64,22 +59,6 @@ case class Service(name: String,
                    queue: String = "rabbitmq://localhost",
                    intermediate: String = "redis://localhost/0",
                    storage: String = "mongodb://localhost/service_hub") {
-  val consumers = ArrayBuffer[ConsumerControl]()
-
-  def registerConsumer(control: ConsumerControl) = consumers.append(control)
-
-  def purgeQueuesAndStorages = {
-    Providers.createMQProvider(this).purgeAllQueues
-    Providers.createStorageProvider(this).purgeEverything
-  }
-
-  def consumeInput(handler: MessageHandler) = registerConsumer(Providers.createMQProvider(this).consumeInput(handler))
-  def enqueueInput(message: Message) = Providers.createMQProvider(this).sendInput(message)
-
-  def consumeOutgoing(handler: MessageHandler) = registerConsumer(Providers.createMQProvider(this).consumeOutgoing(handler))
-  def enqueueOutgoing(msg: Message) = Providers.createMQProvider(this).sendOutgoing(msg)
-
-  def kill(msg: Message) = Providers.createStorageProvider(this).kill(msg)
 
   def getEndpointUrlFor(message: Message) = {
     endpoints.find(e => e.env == message.env)
@@ -91,9 +70,4 @@ case class Service(name: String,
 
   def isSubscriberOf(msg: Message) = subscribes.contains(msg.messageType) || subscribes.contains("*")
   def isPublisherOf(msg: Message) = publishes.contains(msg.messageType)
-
-  def stopConsumers = {
-    consumers.foreach(_.stop)
-    consumers.clear()
-  }
 }

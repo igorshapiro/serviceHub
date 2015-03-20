@@ -1,7 +1,8 @@
 package org.serviceHub.actors
 
-import akka.actor.Actor
+import akka.actor.{ActorRef, Actor}
 import org.serviceHub.actors.ProcessorActor.DeliverMessage
+import org.serviceHub.actors.queue.MQActor.{InputQueue, Enqueue}
 import org.serviceHub.domain.{Service, Message}
 import spray.client.pipelining._
 
@@ -11,7 +12,7 @@ object ProcessorActor {
   case class DeliverMessage(msg: Message, service: Service)
 }
 
-class ProcessorActor extends Actor {
+class ProcessorActor(mqActor: ActorRef, storageActor: ActorRef) extends Actor {
   import context.{system => _, _}
   import org.serviceHub.domain.MessageJsonProtocol._
 
@@ -35,12 +36,15 @@ class ProcessorActor extends Actor {
   def killOrReenqueue(svc: Service, msg: Message) = {
     val attemptedMsg = msg.attempted
     if (attemptedMsg.maxAttempts > attemptedMsg.attemptsMade)
-      svc.enqueueInput(attemptedMsg)
+      mqActor ! Enqueue(svc, InputQueue, attemptedMsg)
     else
-      svc.kill(attemptedMsg)
+      ???
+//      storageActor ! Enqueue(svc, DeadStorage, attemptedMsg)
+//      svc.kill(attemptedMsg)
   }
 
   override def receive: Receive = {
-    case DeliverMessage(msg, svc) => deliver(msg, svc)
+    case DeliverMessage(msg, svc) =>
+      deliver(msg, svc)
   }
 }

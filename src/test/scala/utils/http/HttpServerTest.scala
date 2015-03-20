@@ -9,6 +9,7 @@ import spray.can.Http.ConnectionAttemptFailedException
 import spray.http.HttpMethods._
 import spray.http.{HttpRequest, HttpResponse, Uri}
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class HttpServerTest extends SpecBase with SyncHttp {
@@ -17,16 +18,14 @@ class HttpServerTest extends SpecBase with SyncHttp {
 
   def withServerCallingMock(mockToCall: MockFunction0[Unit])(block: () => Any): Unit = {
     val httpServer = new HttpServer(8080).start({
-      case HttpRequest(GET, Uri.Path("/handler"), _, _, _) => mockToCall(); HttpResponse(200);
+      case HttpRequest(GET, Uri.Path("/handler"), _, _, _) => mockToCall(); Future.successful(HttpResponse(200));
     })
     try {
       block()
     }
     finally {
-      whenReady(httpServer.stop()) {stopped =>
-        stopped should be (true)
-        println("HTTP server stopped")
-      }
+      httpServer.stop()
+      println("HTTP server stopped")
     }
   }
 

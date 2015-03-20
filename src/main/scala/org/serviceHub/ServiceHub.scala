@@ -1,58 +1,56 @@
 package org.serviceHub
 
 import _root_.utils.http.HttpServer
-import akka.actor.{Props, ActorRef, ActorSystem}
-import akka.util.Timeout
+import akka.actor.{ActorSystem, Props}
 import akka.pattern.ask
-import org.serviceHub.actors.ServiceActor
-import org.serviceHub.actors.ServiceActor.{Initialize, Initialized, Handle}
+import akka.routing.RoundRobinPool
+import akka.util.Timeout
+import org.serviceHub.actors.QueueMessages.{Enqueue, Enqueued}
+import org.serviceHub.actors.queue.RabbitMQActor
+import org.serviceHub.actors.{DispatchingActor, FetchingActor, OutgoingActor, ProcessorActor}
 import org.serviceHub.domain.{Message, Service, ServicesRepository}
 import spray.http.HttpMethods._
 import spray.http.{HttpCharsets, HttpRequest, HttpResponse, Uri}
 import spray.json._
 
-import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success}
 
 class ServiceHub(services: Service*)(implicit system: ActorSystem) {
-  import scala.concurrent.ExecutionContext.Implicits.global
   import org.serviceHub.domain.MessageJsonProtocol._
+
+  import scala.concurrent.ExecutionContext.Implicits.global
 
   implicit val timeout = Timeout(120 seconds)
 
-  val servicesRespository = new ServicesRepository(services:_*)
+  val servicesRepository = new ServicesRepository(services:_*)
 
   val apiServer = new HttpServer(8080).start({
     case HttpRequest(POST, Uri.Path("/api/v1/messages"), _, entity, _) =>
       val msg = entity.asString(HttpCharsets.`UTF-8`).parseJson.convertTo[Message]
-      deliverMessage(msg)
-      HttpResponse(200)
+      val enqueued = (outgoingRouter ? Enqueue(msg)).mapTo[Enqueued]
+      val response = Promise[HttpResponse]()
+      enqueued.onComplete {
+        case Success(e: Enqueued) => response.success(HttpResponse(200))
+        case Failure(_) => response.failure(new Exception("Unable to handle request"))
+      }
+      response.future
   })
 
-  def deliverMessage(msg: Message): Unit = {
-    val subscribers = servicesRespository.getSubscribersFor(msg)
-    for (
-      subscriber <- subscribers;
-      actor = serviceActorsMap(subscriber)
-    ) actor ! Handle(msg)
+  val rabbitMQProps = Props[RabbitMQActor]
+  val rabbitMQRouter = system.actorOf(RoundRobinPool(2).props(rabbitMQProps), "rabbitmq-actor-router")
 
-  }
-
-  def createServiceActor(service: Service) = system.actorOf(
-    Props(new ServiceActor(service, servicesRespository)), s"service-${service.name}"
-  )
-
-  val serviceActorsMap: Map[Service, ActorRef] = services.map(svc => (svc, createServiceActor(svc))).toMap
-
-  val initialized: Future[Seq[Initialized]] = Future.sequence(
-    serviceActorsMap.values.map{a => (a ? Initialize()).mapTo[Initialized] }.toSeq
-  )
+  val outgoingProps = Props.create(classOf[OutgoingActor], servicesRepository, rabbitMQRouter)
+  val outgoingRouter = system.actorOf(RoundRobinPool(2).props(outgoingProps), "outgoing-actors-router")
+  val processorProps = Props[ProcessorActor]()
+  val processorsRouter = system.actorOf(RoundRobinPool(100).props(processorProps), "processor-actors-router")
+  val fetchers = services.map(s => system.actorOf(Props(classOf[FetchingActor], s, processorsRouter, rabbitMQRouter)))
+  val dispatcherProps = Props(classOf[DispatchingActor], servicesRepository, rabbitMQRouter)
+  val dispatcherRouter = system.actorOf(RoundRobinPool(2).props(dispatcherProps), "dispatching-actors-router")
 
   def stop(): Future[Boolean] = {
-    val stop = Promise[Boolean]
-    apiServer.stop() onComplete {
-      _ => stop.success(true)
-    }
-    stop.future
+    apiServer.stop()
+    Future { true }
   }
 }

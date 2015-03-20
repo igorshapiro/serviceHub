@@ -1,6 +1,6 @@
 package utils.http
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
@@ -9,10 +9,12 @@ import spray.http.HttpResponse
 import utils.http.ControlActor.Stop
 import utils.http.HttpServer.RequestHandler
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+//import scala.concurrent.ExecutionContext.implicits.global
 
 class HttpServer(port: Integer = 8080)(implicit system: ActorSystem) {
+
   val controlActor = system.actorOf(Props(new ControlActor()))
   def start(handler: RequestHandler) = {
     val handlerProps = Props(new TestHandlerActor(handler))
@@ -21,12 +23,13 @@ class HttpServer(port: Integer = 8080)(implicit system: ActorSystem) {
     this
   }
 
-  def stop(sync: Boolean = true): Future[Boolean] = {
+  def stop(sync: Boolean = true): Unit = {
     implicit val stopTimeout = Timeout(5 seconds)
-    (controlActor ? Stop()).mapTo[Boolean]
+    if (sync)
+      Await.result((controlActor ? Stop()).mapTo[Boolean], stopTimeout.duration)
   }
 }
 
 object HttpServer {
-  type RequestHandler = PartialFunction[Any, HttpResponse]
+  type RequestHandler = PartialFunction[Any, Future[HttpResponse]]
 }

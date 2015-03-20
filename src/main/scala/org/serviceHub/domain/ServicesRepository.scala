@@ -19,8 +19,7 @@ class ServicesRepository(val services: Service*) {
 
   def getSubscribersFor(msg: Message) = services.filter(_.isSubscriberOf(msg))
   def getPublisherOf(msg: Message) = services.find(_.isPublisherOf(msg))
-  def purgeAllQueuesForAllServices = services.foreach(_.purgeQueuesAndStorages)
-  def stopAllServices = services.foreach(_.stopConsumers)
+  def stopAllServices = {}
 
   def detectNonAuthoritativeMessages = {
     val messagePublishers = services.foldLeft(Map[String, List[Service]]())((acc, svc) =>

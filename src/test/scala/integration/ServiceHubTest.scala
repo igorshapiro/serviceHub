@@ -9,6 +9,7 @@ import spray.http.HttpMethods._
 import spray.http._
 import utils.http.HttpServer
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class ServiceHubTest extends SpecBase with SyncHttp {
@@ -32,14 +33,14 @@ class ServiceHubTest extends SpecBase with SyncHttp {
     var deliveredToBAM = 0
 
     val hub = new ServiceHub(ordersService, billingService, bamService)
-    whenReady(hub.initialized) {x => }
+//    whenReady(hub.initialized) {x => }
     val service = new HttpServer(8081).start({
       case HttpRequest(POST, Uri.Path("/billing/order_created"), _, _, _) =>
         deliveredToBilling += 1
-        HttpResponse(200)
+        Future.successful(HttpResponse(200))
       case HttpRequest(POST, Uri.Path("/bam/default/order_created"), _, _, _) =>
         deliveredToBAM += 1
-        HttpResponse(500)
+        Future.successful(HttpResponse(500))
     })
     try{
       sendMessage(Message("order_created", maxAttempts = 6))
@@ -48,7 +49,6 @@ class ServiceHubTest extends SpecBase with SyncHttp {
       deliveredToBilling should be (1)
     }
     finally {
-      whenReady(service.stop()) { x => x should be (true) }
       whenReady(hub.stop()) { x => x should be (true) }
     }
   }

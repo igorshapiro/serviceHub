@@ -1,26 +1,19 @@
 package actors
 
 import akka.testkit.TestActorRef
-import helpers.ActorSpecBase
+import helpers.{ActorSpecBase, RabbitMQTestHelper, TestServices}
 import org.serviceHub.actors.FetchingActor
-import org.serviceHub.domain.{Message, Service}
+import org.serviceHub.actors.ProcessorActor.DeliverMessage
+import org.serviceHub.actors.queue.MQActor
+import org.serviceHub.actors.queue.MQActor.InputQueue
+import org.serviceHub.domain.ServicesRepository
 
-import scala.concurrent.Promise
-
-class FetchingActorTest extends ActorSpecBase {
-  val service = Service("billing", subscribes = Seq("order_created"))
-
-  override protected def beforeEach(): Unit = service.purgeQueuesAndStorages
-  override protected def afterEach(): Unit = service.stopConsumers
+class FetchingActorTest extends ActorSpecBase with RabbitMQTestHelper with TestServices {
+  val repository = new ServicesRepository(billingService)
 
   "actor" should "dispatch messages to Processing actors" in {
-
-    val message = Message("order_created")
-    service.enqueueInput(message)
-
-    val actor = TestActorRef(new FetchingActor(service, testActor))
-
-    val receivedMessage = Promise[Message]
-    expectMsg(message)
+    TestActorRef(new FetchingActor(repository, testActor, queueActor))
+    enqueue(MQActor.resolveQueueName(billingService, InputQueue), orderCreatedMsg)
+    expectMsg(DeliverMessage(orderCreatedMsg, billingService))
   }
 }

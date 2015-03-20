@@ -1,19 +1,19 @@
 package org.serviceHub.actors
 
-import akka.actor.{Actor, ActorRef}
-import org.serviceHub.domain.Service
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import org.serviceHub.actors.ProcessorActor.DeliverMessage
+import org.serviceHub.actors.queue.MQActor.{Consume, InputQueue, MessageArrived}
+import org.serviceHub.domain.ServicesRepository
 
-/**
- * Created by igor on 3/8/15.
- */
-class FetchingActor(service: Service, processor: ActorRef) extends Actor {
+class FetchingActor(repo: ServicesRepository, processor: ActorRef, queueActor: ActorRef) extends Actor with ActorLogging {
   @throws[Exception](classOf[Exception])
   override def preStart(): Unit = {
     super.preStart()
-    service.consumeInput(processor ! _)
+    repo.services.foreach(queueActor ! Consume(_, InputQueue, self))
   }
 
   override def receive: Receive = {
-    case x => println(s"Unexpected message received: $x")
+    case MessageArrived(msg, svc) =>
+      processor ! DeliverMessage(msg, svc)
   }
 }
