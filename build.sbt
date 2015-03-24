@@ -8,6 +8,8 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 resolvers += "The New Motion Public Repo" at "http://nexus.thenewmotion.com/content/groups/public/"
 
+parallelExecution in Test := false
+
 libraryDependencies ++= {
   val sprayV = "1.3.2"
   val akkaV = "2.3.9"

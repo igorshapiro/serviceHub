@@ -6,7 +6,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import spray.can.Http
 import spray.http.HttpResponse
-import utils.http.ControlActor.Stop
+import utils.http.ControlActor.{Stopped, Stop}
 import utils.http.HttpServer.RequestHandler
 
 import scala.concurrent.{Await, Future}
@@ -26,7 +26,7 @@ class HttpServer(port: Integer = 8080)(implicit system: ActorSystem) {
   def stop(sync: Boolean = true): Unit = {
     implicit val stopTimeout = Timeout(5 seconds)
     if (sync)
-      Await.result((controlActor ? Stop()).mapTo[Boolean], stopTimeout.duration)
+      Await.result((controlActor ? Stop()).mapTo[Stopped], stopTimeout.duration)
   }
 }
 

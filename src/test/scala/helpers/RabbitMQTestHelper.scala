@@ -50,13 +50,8 @@ trait RabbitMQTestHelper extends Suite with TestKitBase with Matchers with Scala
       super.runTest(testName, args)
     }
     finally {
-      println("Within test")
       val terminatedFuture = (queueActor ? StopAll).mapTo[Any]
-      whenReady(terminatedFuture) { x =>
-        x should be (StoppedAll)
-        println("Stopped all RabbitMQ connections")
-      }
-
+      whenReady(terminatedFuture) { x => x should be (StoppedAll)}
 
       channel.close()
       connection.close()
@@ -69,7 +64,6 @@ trait RabbitMQTestHelper extends Suite with TestKitBase with Matchers with Scala
                                   envelope: Envelope,
                                   properties: AMQP.BasicProperties,
                                   body: Array[Byte]): Unit = {
-        println(s"Consumed message from test $currentTestName")
         block(MQActor.fromJsonUTF8Bytes(body))
       }
     })
@@ -85,7 +79,6 @@ trait RabbitMQTestHelper extends Suite with TestKitBase with Matchers with Scala
       val receivedAllMessages = Promise[Unit]()
       val receivedMessages = scala.collection.mutable.Set[Message]()
       consumeMessages(MQActor.resolveQueueName(left, queueType), {msg =>
-        println(s"Received: $msg")
         receivedMessages.add(msg)
         if (receivedMessages.size == messages.size) receivedAllMessages.success(Unit)
       })

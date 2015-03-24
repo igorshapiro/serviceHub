@@ -68,7 +68,6 @@ object RabbitMQActor {
     val factory = RabbitMQActor.createConnectionFactory(service)
     val connection = factory.newConnection()
     val channel = connection.createChannel()
-    println("Started channel")
 
     channel.queueDeclare(MQActor.resolveQueueName(service, InputQueue), true, false, false, null)
     channel.queueDeclare(MQActor.resolveQueueName(service, OutgoingQueue), true, false, false, null)
@@ -100,7 +99,6 @@ object RabbitMQActor {
     def stop() = {
       channel.close()
       connection.close()
-      println("Stopped channel")
     }
   }
 }

@@ -12,7 +12,6 @@ case class NoAuthorityForMessageException(messageType: String, publishingService
     s"it's published by more than one service: ${publishingServices.map(_.name).mkString(", ")}")
 
 class ServicesRepository(val services: Service*) {
-  println(services)
   detectNonAuthoritativeMessages
 
   def this(workingDir: String) = this(ServicesRepository.loadServicesFromFile(new File(workingDir, "services.json")):_*)

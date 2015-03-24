@@ -3,7 +3,7 @@ package utils.http
 import akka.actor.{ActorRef, ActorSystem, ActorLogging, Actor}
 import akka.util.Timeout
 import spray.can.Http
-import utils.http.ControlActor.Stop
+import utils.http.ControlActor.{StopFailed, Stopped, Stop}
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -23,10 +23,10 @@ class ControlActor(implicit system: ActorSystem) extends Actor with ActorLogging
       listener ! Http.Unbind(1 second)
       shuttingDownPromise.future.onComplete {
         case Success(_) =>
-          _sender ! true
+          _sender ! Stopped()
           context.stop(self)
         case Failure(_) =>
-          _sender ! false
+          _sender ! StopFailed()
           context.stop(self)
       }
     case Http.Unbound =>
@@ -36,4 +36,6 @@ class ControlActor(implicit system: ActorSystem) extends Actor with ActorLogging
 
 object ControlActor {
   case class Stop()
+  case class Stopped()
+  case class StopFailed()
 }

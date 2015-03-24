@@ -24,7 +24,7 @@ class HttpServerTest extends SpecBase with SyncHttp {
       block()
     }
     finally {
-      httpServer.stop()
+      httpServer.stop(true)
       println("HTTP server stopped")
     }
   }
