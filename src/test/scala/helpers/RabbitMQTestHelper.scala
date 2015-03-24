@@ -1,7 +1,5 @@
 package helpers
 
-import java.io.IOException
-
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.testkit.{TestActorRef, TestKitBase}
@@ -24,24 +22,22 @@ trait RabbitMQTestHelper extends Suite with TestKitBase with Matchers with Scala
   implicit val repository: ServicesRepository
 
   private val conFactory = new ConnectionFactory()
+  conFactory.setVirtualHost("/test")
+  conFactory.setHost("localhost")
   private var connection: Connection = null
   private var channel: Channel = null
+  private var currentTestName: String = null
 
   protected var queueActor: ActorRef = null
 
   def purgeQueueIfExists(svc: Service, qType: QueueType) = {
     val qName = MQActor.resolveQueueName(svc, qType)
-    try {
-      channel.queueDeclarePassive(qName)
-      channel.queuePurge(qName)
-    }
-    catch {
-      // queueDeclarePassive throws IOException if the queue doesn't exist. By design.
-      case ex: IOException =>
-    }
+    channel.queueDeclare(qName, true, false, false, null)
+    channel.queuePurge(qName)
   }
 
   override protected def runTest(testName: String, args: Args): Status = {
+    currentTestName = testName
     connection = conFactory.newConnection()
     channel = connection.createChannel()
     for (
@@ -54,8 +50,13 @@ trait RabbitMQTestHelper extends Suite with TestKitBase with Matchers with Scala
       super.runTest(testName, args)
     }
     finally {
+      println("Within test")
       val terminatedFuture = (queueActor ? StopAll).mapTo[Any]
-      whenReady(terminatedFuture) { x => x should be (StoppedAll)}
+      whenReady(terminatedFuture) { x =>
+        x should be (StoppedAll)
+        println("Stopped all RabbitMQ connections")
+      }
+
 
       channel.close()
       connection.close()
@@ -68,6 +69,7 @@ trait RabbitMQTestHelper extends Suite with TestKitBase with Matchers with Scala
                                   envelope: Envelope,
                                   properties: AMQP.BasicProperties,
                                   body: Array[Byte]): Unit = {
+        println(s"Consumed message from test $currentTestName")
         block(MQActor.fromJsonUTF8Bytes(body))
       }
     })

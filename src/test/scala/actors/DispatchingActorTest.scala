@@ -23,6 +23,10 @@ class DispatchingActorTest extends ActorSpecBase with TestServices with RabbitMQ
     ordersService should haveInInputQueue (orderPaid)
     bamService should haveInInputQueue (orderCreated, orderPaid)
   }
+
+  "it" should "run next test" in {
+    println("in run next test")
+  }
 }
 
 

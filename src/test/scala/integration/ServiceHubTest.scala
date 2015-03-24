@@ -2,9 +2,9 @@ package integration
 
 import akka.actor._
 import akka.util.Timeout
-import helpers.{SpecBase, SyncHttp}
+import helpers.{SpecBase, SyncHttp, TestServices}
 import org.serviceHub.ServiceHub
-import org.serviceHub.domain.{Endpoint, Message, Service}
+import org.serviceHub.domain.Message
 import spray.http.HttpMethods._
 import spray.http._
 import utils.http.HttpServer
@@ -12,28 +12,15 @@ import utils.http.HttpServer
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class ServiceHubTest extends SpecBase with SyncHttp {
+class ServiceHubTest extends SpecBase with SyncHttp with TestServices {
   implicit val system = ActorSystem("ServiceHubTestSystem")
   implicit val timeout = Timeout(5 seconds)
-
-  val ordersService = Service("orders", Seq("order_created"), Seq.empty, Seq(
-    Endpoint("http://localhost:8081/orders/:type")
-  ))
-
-  val billingService = Service("billing", Seq.empty, Seq("order_created"), Seq(
-    Endpoint("http://localhost:8081/billing/:type")
-  ))
-
-  val bamService = Service("bam", Seq.empty, Seq("order_created"), Seq(
-    Endpoint("http://localhost:8081/bam/:env/:type")
-  ))
 
   "POST /api/v1/messages" should "deliver message to subscribers" in {
     var deliveredToBilling = 0
     var deliveredToBAM = 0
 
     val hub = new ServiceHub(ordersService, billingService, bamService)
-//    whenReady(hub.initialized) {x => }
     val service = new HttpServer(8081).start({
       case HttpRequest(POST, Uri.Path("/billing/order_created"), _, _, _) =>
         deliveredToBilling += 1
@@ -50,6 +37,7 @@ class ServiceHubTest extends SpecBase with SyncHttp {
     }
     finally {
       whenReady(hub.stop()) { x => x should be (true) }
+      service.stop(true)
     }
   }
 }

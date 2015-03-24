@@ -36,6 +36,6 @@ class MongoStorageProvider(svc: Service) extends StorageProvider(svc) {
     messages.toList
   }
 
-  private def msgToDBObject(msg: Message) = JSON.parse(msg.toJson.prettyPrint).asInstanceOf[DBObject]
-  private def msgFromDBObject(obj: DBObject) = JSON.serialize(obj).parseJson.convertTo[Message]
+    private def msgToDBObject(msg: Message) = JSON.parse(msg.toJson.prettyPrint).asInstanceOf[DBObject]
+    private def msgFromDBObject(obj: DBObject) = JSON.serialize(obj).parseJson.convertTo[Message]
 }

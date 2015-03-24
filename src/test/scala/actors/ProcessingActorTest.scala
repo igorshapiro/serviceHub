@@ -1,7 +1,7 @@
 package actors
 
 import akka.testkit.TestActorRef
-import helpers.{RabbitMQTestHelper, ActorSpecBase}
+import helpers.{TestServices, MongoTestHelper, RabbitMQTestHelper, ActorSpecBase}
 import org.serviceHub.Providers
 import org.serviceHub.actors.ProcessorActor
 import org.serviceHub.actors.ProcessorActor.DeliverMessage
@@ -13,13 +13,15 @@ import utils.http.HttpServer
 
 import scala.concurrent.{Future, Promise}
 
-class ProcessingActorTest extends ActorSpecBase with RabbitMQTestHelper {
+class ProcessingActorTest extends ActorSpecBase with RabbitMQTestHelper with MongoTestHelper with TestServices {
   import org.serviceHub.domain.MessageJsonProtocol._
 
   val service = Service("billing",
     subscribes = Seq("order_created"),
-    endpoints = Seq(Endpoint("http://localhost:8080/:type"))
+    endpoints = Seq(Endpoint("http://localhost:8080/:type")),
+    queue = rabbitMQTestUrl
   )
+
   val repository = new ServicesRepository(service)
 
   def runScenario(msg: Message, handler: Message => HttpResponse, block: () => Unit) = {
@@ -29,8 +31,8 @@ class ProcessingActorTest extends ActorSpecBase with RabbitMQTestHelper {
         val msg = e.asString.parseJson.convertTo[Message]
         Future.successful(handler(msg))
     }
-    try{
-      val actor = TestActorRef(new ProcessorActor(queueActor, null))
+    try {
+      val actor = TestActorRef(new ProcessorActor(queueActor, storageActor))
       actor ! DeliverMessage(msg, service)
 
       block()
@@ -89,11 +91,6 @@ class ProcessingActorTest extends ActorSpecBase with RabbitMQTestHelper {
 
     service shouldNot haveInInputQueue(msg)
     service shouldNot haveInInputQueue(msg.attempted)
-//    // Check the message was not re-enqueued
-//    val inputMessage = Promise[Message]
-//    service.consumeInput(msg => inputMessage.success(msg))
-//    Thread.sleep(100)
-//    inputMessage.isCompleted should be (false)
   }
 }
 

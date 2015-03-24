@@ -5,6 +5,7 @@ import com.rabbitmq.client._
 import org.serviceHub.actors.queue.MQActor._
 import org.serviceHub.actors.queue.RabbitMQActor.{Active, RabbitMQServices, State}
 import org.serviceHub.domain.{Message, Service}
+import spray.http.Uri
 
 class RabbitMQActor extends FSM[State, RabbitMQServices] {
   startWith(Active, new RabbitMQServices())
@@ -29,6 +30,15 @@ class RabbitMQActor extends FSM[State, RabbitMQServices] {
 }
 
 object RabbitMQActor {
+  def createConnectionFactory(service: Service): ConnectionFactory = {
+    val url = Uri(service.queue)
+    val factory = new ConnectionFactory()
+    factory.setHost(url.authority.host.address)
+    factory.setPort(if (url.authority.port == 0) 5672 else url.authority.port)
+    factory.setVirtualHost(url.path.toString())
+    factory
+  }
+
   sealed trait State
   case object Active extends State
 
@@ -55,9 +65,10 @@ object RabbitMQActor {
     import spray.json._
     import org.serviceHub.domain.MessageJsonProtocol._
 
-    val factory = new ConnectionFactory()
+    val factory = RabbitMQActor.createConnectionFactory(service)
     val connection = factory.newConnection()
     val channel = connection.createChannel()
+    println("Started channel")
 
     channel.queueDeclare(MQActor.resolveQueueName(service, InputQueue), true, false, false, null)
     channel.queueDeclare(MQActor.resolveQueueName(service, OutgoingQueue), true, false, false, null)
@@ -89,6 +100,7 @@ object RabbitMQActor {
     def stop() = {
       channel.close()
       connection.close()
+      println("Stopped channel")
     }
   }
 }

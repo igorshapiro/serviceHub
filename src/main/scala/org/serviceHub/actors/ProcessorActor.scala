@@ -1,11 +1,16 @@
 package org.serviceHub.actors
 
 import akka.actor.{ActorRef, Actor}
+import akka.util.Timeout
 import org.serviceHub.actors.ProcessorActor.DeliverMessage
 import org.serviceHub.actors.queue.MQActor.{InputQueue, Enqueue}
+import org.serviceHub.actors.storage.StorageActor.{Stored, DeadStorage, Store}
 import org.serviceHub.domain.{Service, Message}
 import spray.client.pipelining._
+import akka.pattern.ask
+import scala.concurrent.duration._
 
+import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object ProcessorActor {
@@ -15,6 +20,8 @@ object ProcessorActor {
 class ProcessorActor(mqActor: ActorRef, storageActor: ActorRef) extends Actor {
   import context.{system => _, _}
   import org.serviceHub.domain.MessageJsonProtocol._
+
+  implicit val timeout = new Timeout(5 seconds)
 
   def deliver(msg: Message, service: Service): Unit = {
     val url = service.getEndpointUrlFor(msg)
@@ -38,9 +45,7 @@ class ProcessorActor(mqActor: ActorRef, storageActor: ActorRef) extends Actor {
     if (attemptedMsg.maxAttempts > attemptedMsg.attemptsMade)
       mqActor ! Enqueue(svc, InputQueue, attemptedMsg)
     else
-      ???
-//      storageActor ! Enqueue(svc, DeadStorage, attemptedMsg)
-//      svc.kill(attemptedMsg)
+      (storageActor ? Store(msg.attempted, svc, DeadStorage)).mapTo[Stored]
   }
 
   override def receive: Receive = {

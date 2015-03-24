@@ -7,6 +7,7 @@ import akka.routing.RoundRobinPool
 import akka.util.Timeout
 import org.serviceHub.actors.QueueMessages.{Enqueue, Enqueued}
 import org.serviceHub.actors.queue.RabbitMQActor
+import org.serviceHub.actors.storage.MongoStorageActor
 import org.serviceHub.actors.{DispatchingActor, FetchingActor, OutgoingActor, ProcessorActor}
 import org.serviceHub.domain.{Message, Service, ServicesRepository}
 import spray.http.HttpMethods._
@@ -38,19 +39,22 @@ class ServiceHub(services: Service*)(implicit system: ActorSystem) {
       response.future
   })
 
+  val mongoStorageProps = Props[MongoStorageActor]
+  val mongoStorageRouter = system.actorOf(RoundRobinPool(2).props(mongoStorageProps), "mongo-storage-router")
+
   val rabbitMQProps = Props[RabbitMQActor]
   val rabbitMQRouter = system.actorOf(RoundRobinPool(2).props(rabbitMQProps), "rabbitmq-actor-router")
 
   val outgoingProps = Props.create(classOf[OutgoingActor], servicesRepository, rabbitMQRouter)
   val outgoingRouter = system.actorOf(RoundRobinPool(2).props(outgoingProps), "outgoing-actors-router")
-  val processorProps = Props[ProcessorActor]()
+  val processorProps = Props(classOf[ProcessorActor], rabbitMQRouter, mongoStorageRouter)
   val processorsRouter = system.actorOf(RoundRobinPool(100).props(processorProps), "processor-actors-router")
-  val fetchers = services.map(s => system.actorOf(Props(classOf[FetchingActor], s, processorsRouter, rabbitMQRouter)))
+  val fetchers = services.map(s => system.actorOf(Props(classOf[FetchingActor], servicesRepository, processorsRouter, rabbitMQRouter)))
   val dispatcherProps = Props(classOf[DispatchingActor], servicesRepository, rabbitMQRouter)
   val dispatcherRouter = system.actorOf(RoundRobinPool(2).props(dispatcherProps), "dispatching-actors-router")
 
   def stop(): Future[Boolean] = {
-    apiServer.stop()
+    apiServer.stop(true)
     Future { true }
   }
 }
