@@ -18,6 +18,15 @@ Lightweight, scalable, high-performance Event Driven Architecture (`EDA`) Enable
   brew install sbt
 ```
 
+### Prerequisites for Ubuntu
+
+```sh
+  sudo apt-get install scala
+  echo "deb http://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+  sudo apt-get update
+  sudo apt-get install sbt
+```
+
 ### Build
 
 ```sh
