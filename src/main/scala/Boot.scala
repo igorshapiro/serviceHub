@@ -1,7 +1,9 @@
-import scala.reflect.io.{File, Directory}
+import akka.actor.ActorSystem
+import org.serviceHub.ServiceHub
+import org.serviceHub.domain.ServicesRepository
 
 object Boot extends App {
-  println(Directory.Current)
-  println(File(".").toAbsolute)
-  println(File("./test-assets/manifest-loading-test/services.json").bufferedReader().readLine())
+  implicit val system = ActorSystem()
+  val repo = new ServicesRepository(".")
+  val hub = new ServiceHub(repo.services:_*)
 }
