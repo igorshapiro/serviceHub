@@ -31,7 +31,7 @@ class ServiceHubTest extends SpecBase with SyncHttp with TestServices {
     })
     try{
       sendMessage(Message("order_created", maxAttempts = 6))
-      Thread.sleep(100)
+      Thread.sleep(300)
       deliveredToBAM should be (6)
       deliveredToBilling should be (1)
     }
