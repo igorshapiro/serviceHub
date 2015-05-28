@@ -4,7 +4,7 @@ import org.serviceHub.domain.{Endpoint, Message, Service}
 import org.serviceHub.utils.SecureRandom
 
 trait TestServices {
-  val rabbitMQTestUrl = "rabbitmq://localhost/test"
+  val rabbitMQTestUrl = "rabbitmq://127.0.0.1/test"
   private val testId = SecureRandom.newId()
   val ordersService = Service(s"orders_$testId",
     publishes = Seq("order_created"),

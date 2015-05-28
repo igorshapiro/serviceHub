@@ -56,7 +56,7 @@ case class Service(name: String,
                    publishes: Seq[String] = Seq.empty,
                    subscribes: Seq[String] = Seq.empty,
                    endpoints: Seq[Endpoint] = Seq(Endpoint("http://localhost:8080/events/:message_type")),
-                   queue: String = "rabbitmq://localhost",
+                   queue: String = "rabbitmq://127.0.0.1",
                    intermediate: String = "redis://localhost/0",
                    storage: String = "mongodb://localhost/service_hub") {
 
