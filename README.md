@@ -27,6 +27,16 @@ Lightweight, scalable, high-performance Event Driven Architecture (`EDA`) Enable
   sudo apt-get install sbt
 ```
 
+## Configuring RabbitMQ
+
+For the test phase of the build the `test` vhost is required:
+
+```
+sudo rabbitmq-plugins enable rabbitmq_management
+curl -i -u guest:guest -H "content-type:application/json" -XPUT http://localhost:15672/api/vhosts/%2Ftest
+curl -i -u guest:guest -H "content-type:application/json" -XPUT http://localhost:15672/api/permissions/%2Ftest/guest -d'{"read": ".*", "write": ".*", "configure":".*"}'
+```
+
 ### Build
 
 ```sh

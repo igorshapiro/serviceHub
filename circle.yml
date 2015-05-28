@@ -2,6 +2,9 @@ dependencies:
   pre:
     - wget -q https://dl.bintray.com/sbt/debian/sbt-0.13.5.deb
     - sudo dpkg -i sbt-0.13.5.deb
+    - sudo rabbitmq-plugins enable rabbitmq_management
+    - curl -i -u guest:guest -H "content-type:application/json" -XPUT http://localhost:15672/api/vhosts/%2Ftest
+    - curl -i -u guest:guest -H "content-type:application/json" -XPUT http://localhost:15672/api/permissions/%2Ftest/guest -d'{"read": ".*", "write": ".*", "configure":".*"}'
   cache_directories:
     - "~/.ivy2"
     - "~/.sbt"
