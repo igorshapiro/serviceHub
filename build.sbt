@@ -29,3 +29,5 @@ libraryDependencies ++= {
     "org.mongodb" %% "casbah" % "2.8.0"
   )
 }
+
+test in assembly := {}
