@@ -19,7 +19,7 @@ class HttpServer(port: Integer = 8080)(implicit system: ActorSystem) {
   def start(handler: RequestHandler) = {
     val handlerProps = Props(new TestHandlerActor(handler))
     val handlerActor = system.actorOf(handlerProps)
-    IO(Http).tell(Http.Bind(handlerActor, interface = "localhost", port = port), controlActor)
+    IO(Http).tell(Http.Bind(handlerActor, interface = "0.0.0.0", port = port), controlActor)
     this
   }
 
