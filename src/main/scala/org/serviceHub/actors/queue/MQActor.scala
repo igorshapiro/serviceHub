@@ -19,7 +19,7 @@ object MQActor {
   case class Enqueue(service: Service, queueType: QueueType, msg: Message)
   case class MessageEnqueued(message: Message)
   case class Consume(service: Service, queueType: QueueType, target: ActorRef)
-  case class MessageArrived(msg: Message, service: Service)
+  case class MessageArrived(msg: Message, service: Service, ack: () => Unit)
   case object StopAll
   case object StoppedAll
 

@@ -61,9 +61,11 @@ object RabbitMQActor {
     }
   }
 
+  case class AckMetadata(tag: Long, channel: Channel)
+
   case class RabbitMQService(service: Service) {
-    import spray.json._
     import org.serviceHub.domain.MessageJsonProtocol._
+    import spray.json._
 
     val factory = RabbitMQActor.createConnectionFactory(service)
     val connection = factory.newConnection()
@@ -80,9 +82,9 @@ object RabbitMQActor {
                                     properties: AMQP.BasicProperties,
                                     body: Array[Byte]): Unit = {
           val msg = new String(body, "UTF-8").parseJson.convertTo[Message]
-
-          target ! MessageArrived(msg, service)
-          channel.basicAck(envelope.getDeliveryTag, false)      // TODO: REMOVE THIS!!! Should be handled by the receiving actor
+          target ! MessageArrived(msg, service, () =>
+            channel.basicAck(envelope.getDeliveryTag, false)
+          )
         }
       })
     }

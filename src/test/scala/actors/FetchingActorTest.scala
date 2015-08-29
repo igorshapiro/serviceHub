@@ -14,6 +14,10 @@ class FetchingActorTest extends ActorSpecBase with RabbitMQTestHelper with TestS
   "actor" should "dispatch messages to Processing actors" in {
     TestActorRef(new FetchingActor(repository, testActor, queueActor))
     enqueue(MQActor.resolveQueueName(billingService, InputQueue), orderCreatedMsg)
-    expectMsg(DeliverMessage(orderCreatedMsg, billingService))
+    expectMsgPF() {
+      case DeliverMessage(msg, svc, _) =>
+        msg should be(orderCreatedMsg)
+        svc should be(billingService)
+    }
   }
 }

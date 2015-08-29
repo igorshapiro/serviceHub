@@ -28,7 +28,11 @@ class RabbitMQActorTest extends ActorSpecBase with TestServices with BeforeAndAf
     enqueue(ordersService.inputQueue, orderCreatedMsg)
 
     queueActor ! Consume(ordersService, InputQueue, testActor)
-    expectMsg(MessageArrived(orderCreatedMsg, ordersService))
+    expectMsgPF() {
+      case MessageArrived(msg, svc, _) =>
+        msg should be(orderCreatedMsg)
+        svc should be(ordersService)
+    }
   }
 
   "! Enqueue" should "send the message to queue" in {

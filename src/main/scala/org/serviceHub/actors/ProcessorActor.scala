@@ -1,20 +1,20 @@
 package org.serviceHub.actors
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Actor, ActorRef}
+import akka.pattern.ask
 import akka.util.Timeout
 import org.serviceHub.actors.ProcessorActor.DeliverMessage
-import org.serviceHub.actors.queue.MQActor.{InputQueue, Enqueue}
-import org.serviceHub.actors.storage.StorageActor.{Stored, DeadStorage, Store}
-import org.serviceHub.domain.{Service, Message}
+import org.serviceHub.actors.queue.MQActor.{Enqueue, InputQueue}
+import org.serviceHub.actors.storage.StorageActor.{DeadStorage, Store, Stored}
+import org.serviceHub.domain.{Message, Service}
 import spray.client.pipelining._
-import akka.pattern.ask
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object ProcessorActor {
-  case class DeliverMessage(msg: Message, service: Service)
+  case class DeliverMessage(msg: Message, service: Service, ack: () => Unit)
 }
 
 class ProcessorActor(mqActor: ActorRef, storageActor: ActorRef) extends Actor {
@@ -23,18 +23,24 @@ class ProcessorActor(mqActor: ActorRef, storageActor: ActorRef) extends Actor {
 
   implicit val timeout = new Timeout(5 seconds)
 
-  def deliver(msg: Message, service: Service): Unit = {
+  def deliver(msg: Message, service: Service, ack: () => Unit): Unit = {
     val url = service.getEndpointUrlFor(msg)
     val pipeline = addHeader("Connection", "close") ~> sendReceive
 
     val response = pipeline { Post(url, msg) }
     response onComplete {
-      case Success(r) => r.status.intValue / 100 match {
-        case 4 | 5 => killOrReenqueue(service, msg)
-        case 3 => schedule(msg)
-        case 2 => handleSuccess(msg)
+      case Success(r) => {
+        r.status.intValue / 100 match {
+          case 4 | 5 => killOrReenqueue(service, msg)
+          case 3 => schedule(msg)
+          case 2 => handleSuccess(msg)
+        }
+        ack()
       }
-      case Failure(e) => killOrReenqueue(service, msg)
+      case Failure(e) => {
+        killOrReenqueue(service, msg)
+        ack()
+      }
     }
   }
 
@@ -49,7 +55,7 @@ class ProcessorActor(mqActor: ActorRef, storageActor: ActorRef) extends Actor {
   }
 
   override def receive: Receive = {
-    case DeliverMessage(msg, svc) =>
-      deliver(msg, svc)
+    case DeliverMessage(msg, svc, ack) =>
+      deliver(msg, svc, ack)
   }
 }

@@ -19,7 +19,9 @@ class DispatchingActor(repository: ServicesRepository, queueActor: ActorRef) ext
   }
 
   override def receive: Receive = {
-    case MessageArrived(msg, _) => dispatch(msg)
+    case MessageArrived(msg, _, ack) =>
+      dispatch(msg)
+      ack()
   }
 
   def dispatch(message: Message): Unit = {

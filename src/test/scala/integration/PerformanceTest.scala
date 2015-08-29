@@ -38,7 +38,7 @@
 //      case x => println(x)
 //    }
 //    finally {
-//      whenReady(service.stop()) { x => x should be (true) }
+//      service.stop()
 //      whenReady(hub.stop()) { x => x should be (true) }
 //    }
 //

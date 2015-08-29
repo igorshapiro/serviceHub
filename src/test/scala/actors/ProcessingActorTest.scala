@@ -33,7 +33,7 @@ class ProcessingActorTest extends ActorSpecBase with RabbitMQTestHelper with Mon
     }
     try {
       val actor = TestActorRef(new ProcessorActor(queueActor, storageActor))
-      actor ! DeliverMessage(msg, service)
+      actor ! DeliverMessage(msg, service, () => Unit)
 
       block()
     }

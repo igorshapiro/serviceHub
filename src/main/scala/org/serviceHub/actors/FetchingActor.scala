@@ -13,7 +13,7 @@ class FetchingActor(repo: ServicesRepository, processor: ActorRef, queueActor: A
   }
 
   override def receive: Receive = {
-    case MessageArrived(msg, svc) =>
-      processor ! DeliverMessage(msg, svc)
+    case MessageArrived(msg, svc, ack) =>
+      processor ! DeliverMessage(msg, svc, ack)
   }
 }
